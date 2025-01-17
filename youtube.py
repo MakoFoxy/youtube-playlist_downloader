@@ -20,18 +20,31 @@ def download_playlist(playlist_url):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    if request.method == 'POST':
-        playlist_url = request.form.get('playlist_url')
+    if request.method == "POST":
+        playlist_url = request.form.get("playlist_url")
         if playlist_url:
             try:
+                # Вызов функции загрузки плейлиста
                 download_playlist(playlist_url)
-                return f"Видео из плейлиста по адресу {playlist_url} успешно загружены в папку: {DOWNLOAD_PATH}"
+                return render_template(
+                    "result.html",
+                    title="Успех!",
+                    message=f"Видео из плейлиста по адресу {playlist_url} успешно загружены.",
+                )
             except Exception as e:
-                return f"Произошла ошибка: {e}"
+                return render_template(
+                    "result.html",
+                    title="Ошибка!",
+                    message=f"Произошла ошибка: {e}",
+                )
         else:
-            return "Ссылка на плейлист отсутствует!"
-
-    return render_template('index.html')
+            return render_template(
+                "result.html",
+                title="Ошибка!",
+                message="Ссылка на плейлист отсутствует.",
+            )
+    # Для GET-запросов возвращаем страницу с формой
+    return render_template("index.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
