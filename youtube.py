@@ -10,6 +10,7 @@ def download_playlist(playlist_url):
         'format': 'best[ext=mp4]',  # Скачивать видео в формате MP4
         'outtmpl': os.path.join(DOWNLOAD_PATH, '%(title)s.%(ext)s'),  # Путь сохранения
         'noplaylist': False,  # Скачивать весь плейлист
+        'cookiefile': 'youtube-cookies.txt',
     }
 
     if not os.path.exists(DOWNLOAD_PATH):
