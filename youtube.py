@@ -2,16 +2,15 @@ import os
 import time
 from flask import Flask, render_template, Response, request
 from yt_dlp import YoutubeDL
+from threading import Thread
 
 app = Flask(__name__)
 
-# Буфер для хранения прогресса
-progress_buffer = []
+# Потокобезопасный буфер для прогресса
+from queue import Queue
+progress_queue = Queue()
 
 def download_playlist_with_progress(playlist_url):
-    global progress_buffer
-    progress_buffer.clear()  # Очистка буфера перед началом загрузки
-    browsers = ['firefox', 'chrome', 'msedge', 'brave', 'vivaldi', 'opera']
     DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
     print(f"Download folder used: {DOWNLOAD_PATH}")
     
@@ -26,29 +25,21 @@ def download_playlist_with_progress(playlist_url):
     }
 
     def progress_hook(d):
-        """Hook for processing progress messages."""
+        """Хук для обработки прогресса."""
         if d['status'] == 'downloading':
-            progress_buffer.append(f"Dawnloading a file {d['info_dict']['title']}: {d['_percent_str']} finished")
+            message = f"Downloading file {d['info_dict']['title']}: {d['_percent_str']} completed"
+            progress_queue.put(message)
         elif d['status'] == 'finished':
-            progress_buffer.append(f"File {d['info_dict']['title']} successfully dawnloaded!")
+            message = f"File {d['info_dict']['title']} downloaded successfully!"
+            progress_queue.put(message)
 
-    for browser in browsers:
-        try:
-            options['cookiesfrombrowser'] = (browser,)
-            progress_buffer.append(f"Attempting to use cookies from {browser}...")
+    options['progress_hooks'] = [progress_hook]
 
-            # Настройка хуков
-            options['progress_hooks'] = [progress_hook]
-
-            with YoutubeDL(options) as ydl:
-                ydl.download([playlist_url])
-            progress_buffer.append(f"Cookies from  {browser} were successfully used.")
-            break
-        except Exception as e:
-            progress_buffer.append(f"Failed to use {browser}: {e}")
-
-    if not progress_buffer:
-        progress_buffer.append("Error: Could not use cookies from any browser.")
+    try:
+        with YoutubeDL(options) as ydl:
+            ydl.download([playlist_url])
+    except Exception as e:
+        progress_queue.put(f"Error during download: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -69,16 +60,17 @@ def index():
 def progress_stream():
     def generate():
         while True:
-            if progress_buffer:
-                message = progress_buffer.pop(0)
+            if not progress_queue.empty():
+                message = progress_queue.get()
                 yield f"data: {message}\n\n"
             else:
-                time.sleep(1)  # Ожидание новых сообщений
+                time.sleep(1)
+
     playlist_url = request.args.get("playlist_url")
     if not playlist_url:
         return Response("data: Error: link to playlist missing.\n\n", content_type="text/event-stream")
-    # Запускаем загрузку в фоне
-    from threading import Thread
+    
+    # Запускаем загрузку в фоновом потоке
     thread = Thread(target=download_playlist_with_progress, args=(playlist_url,))
     thread.start()
     return Response(generate(), content_type="text/event-stream")
