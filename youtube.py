@@ -12,7 +12,7 @@ def download_playlist_with_progress(playlist_url):
     global progress_buffer
     progress_buffer.clear()  # Очистка буфера перед началом загрузки
     browsers = ['firefox', 'chrome', 'msedge', 'brave', 'vivaldi', 'opera']
-    DOWNLOAD_PATH = os.path.join(os.getcwd(), 'downloads')
+    DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
     print(f"Используемая папка для загрузки: {DOWNLOAD_PATH}")
     
     if not os.path.exists(DOWNLOAD_PATH):
