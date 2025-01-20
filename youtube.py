@@ -3,14 +3,40 @@ import time
 from flask import Flask, render_template, Response, request
 from yt_dlp import YoutubeDL
 from threading import Thread
+from googleapiclient.discovery import build
+from urllib.parse import urlparse, parse_qs
+from queue import Queue
 
 app = Flask(__name__)
-
-# Потокобезопасный буфер для прогресса
-from queue import Queue
 progress_queue = Queue()
 
-def download_playlist_with_progress(playlist_url):
+def extract_playlist_id(url):
+    query = parse_qs(urlparse(url).query)
+    return query.get('list', [None])[0]
+
+def fetch_playlist_videos(playlist_id, api_key):    
+    youtube = build('youtube', 'v3', developerKey=api_key)
+    video_ids = []
+    request = youtube.playlistItems().list(
+        part='snippet',
+        playlistId=playlist_id,
+        maxResults=50
+    )
+
+    while request:
+        response = request.execute()
+        video_ids.extend(item['snippet']['resourceId']['videoId'] for item in response['items'])
+        request = youtube.playlistItems().list_next(request, response)
+
+    return video_ids
+    
+def download_videos(video_ids):
+    video_urls = [f"https://www.youtube.com/watch?v={video_id}" for video_id in video_ids]
+
+    for video_url in video_urls:
+        download_videoplaylist_with_progress(video_url)
+    
+def download_videoplaylist_with_progress(videoplaylist_url):
     DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
     print(f"Download folder used: {DOWNLOAD_PATH}")
     
@@ -33,11 +59,11 @@ def download_playlist_with_progress(playlist_url):
             message = f"File {d['info_dict']['title']} downloaded successfully!"
             progress_queue.put(message)
 
-    options['progress_hooks'] = [progress_hook]
+    options['progress_hooks'] = [progress_hook]   
 
     try:
         with YoutubeDL(options) as ydl:
-            ydl.download([playlist_url])
+            ydl.download([videoplaylist_url])
     except Exception as e:
         progress_queue.put(f"Error during download: {e}")
 
@@ -46,13 +72,42 @@ def index():
     if request.method == "POST":
         playlist_url = request.form.get("playlist_url")
         if playlist_url:
-            return render_template('progress.html', playlist_url=playlist_url)
-        else:
+            playlist_id = extract_playlist_id(playlist_url)
+            if playlist_id:
+                api_key = "AIzaSyCX21f1UAqdBE6TGolNIYHA1WxaiNR7aOU"
+                if not api_key:
+                    return render_template(
+                        "result.html",
+                        title="Error!",
+                        message="API key not configured.",
+                        details="Please set the API key as an environment variable.",
+                    )
+                
+                try:
+                    video_ids = fetch_playlist_videos(playlist_id, api_key)
+                    if not video_ids:
+                        return render_template(
+                            "result.html",
+                            title="Error!",
+                            message="No videos found in the playlist.",
+                            details="The provided playlist is empty or inaccessible.",
+                        )
+                    # Запускаем процесс загрузки
+                    thread = Thread(target=download_videos, args=(video_ids,))
+                    thread.start()
+                    return render_template('progress.html', playlist_url=playlist_url)
+                except Exception as e:
+                    return render_template(
+                        "result.html",
+                        title="Error!",
+                        message="Failed to fetch playlist videos.",
+                        details=str(e),
+                    )
             return render_template(
                 "result.html",
                 title="Error!",
-                message="The link to the playlist is missing.",
-                details="Please enter the correct YouTube playlist link and try again.",
+                message="Could not extract playlist ID.",
+                details="The provided URL is invalid or does not contain a playlist ID.",
             )
     return render_template("index.html")
 
@@ -66,13 +121,6 @@ def progress_stream():
             else:
                 time.sleep(1)
 
-    playlist_url = request.args.get("playlist_url")
-    if not playlist_url:
-        return Response("data: Error: link to playlist missing.\n\n", content_type="text/event-stream")
-    
-    # Запускаем загрузку в фоновом потоке
-    thread = Thread(target=download_playlist_with_progress, args=(playlist_url,))
-    thread.start()
     return Response(generate(), content_type="text/event-stream")
 
 if __name__ == "__main__":
