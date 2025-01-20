@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогресс скачивания</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: #ffffff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        #progress {
+            margin-top: 1rem;
+            font-size: 1rem;
+            color: #555;
+            background: #f9f9f9;
+            padding: 1rem;
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+        }
+
+        a {
+            display: block;
+            margin-top: 1rem;
+            text-decoration: none;
+            color: white;
+            background-color: #007bff;
+            padding: 0.7rem 1.5rem;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        a:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Прогресс скачивания</h1>
+        <div id="progress"></div>
+        <a href="/">Вернуться назад</a>
+    </div>
+
+    <script>
+        const playlistUrl = "{{ playlist_url }}";
+        const progressDiv = document.getElementById('progress');
+
+        // Подключение к EventSource
+        const eventSource = new EventSource(`/progress_stream?playlist_url=${encodeURIComponent(playlistUrl)}`);
+
+        eventSource.onmessage = function (event) {
+            progressDiv.innerHTML += event.data + "<br>";
+            progressDiv.scrollTop = progressDiv.scrollHeight; // Автопрокрутка вниз
+        };
+
+        eventSource.onerror = function () {
+            progressDiv.innerHTML += "Ошибка подключения к серверу.<br>";
+            eventSource.close();
+        };
+    </script>
+</body>
+
+</html>

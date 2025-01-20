@@ -69,6 +69,14 @@
             font-size: 0.9rem;
             color: #888;
         }
+
+        #progress {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #333;
+            text-align: left;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 
@@ -80,6 +88,7 @@
             <input type="text" id="playlist_url" name="playlist_url" placeholder="https://youtube.com/playlist?list=..." required>
             <button type="submit">Скачать</button>
         </form>
+        <div id="progress"></div>
         <footer>
             <p>Создано для удобного скачивания</p>
         </footer>
