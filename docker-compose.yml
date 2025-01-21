@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8085:8085" # Пробрасываем порт 8085
+    environment:
+      - DOWNLOAD_PATH=/downloads # Указываем переменную окружения внутри контейнера
+    volumes:
+      - ${HOME}/Downloads:/downloads # Примонтируем системную папку Downloads на хосте в контейнер
+      - ${USERPROFILE}/Downloads:/downloads # Для Windows

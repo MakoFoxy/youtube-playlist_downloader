@@ -1,6 +1,6 @@
 import os
 import time
-from flask import Flask, render_template, Response, request
+from flask import Flask, render_template, Response, request, send_from_directory
 from yt_dlp import YoutubeDL
 from threading import Thread
 from googleapiclient.discovery import build
@@ -37,7 +37,7 @@ def download_videos(video_ids):
         download_videoplaylist_with_progress(video_url)
     
 def download_videoplaylist_with_progress(videoplaylist_url):
-    DOWNLOAD_PATH = os.path.join(os.path.expanduser('~'), 'Downloads')
+    DOWNLOAD_PATH = os.environ.get('DOWNLOAD_PATH', os.path.join(os.getcwd(), 'downloads'))
     print(f"Download folder used: {DOWNLOAD_PATH}")
     
     if not os.path.exists(DOWNLOAD_PATH):
